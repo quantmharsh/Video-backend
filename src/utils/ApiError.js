@@ -1,6 +1,6 @@
 //this file is used to create a API error format by using this everywhere we get error in 
 //same formate we dont need to write catch(err) which is in asyncHandler.js it will be same for all
-class ApiError extends error{
+class ApiError extends Error{
     constructor( statusCode ,
         
         message ="Something went wrong",
