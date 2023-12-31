@@ -24,4 +24,10 @@ app.use(express.static("public"))
 
 //for cookies
 app.use(cookieParser());
+
+//Setting up routes
+//1. importing routes
+import userRouter  from "./routes/user.routes.js"
+//2. routes declaration user  gos  to /users  then userRouter will handle next step
+app.use("/api/v1/users" ,userRouter);
 export {app}
