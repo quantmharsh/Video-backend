@@ -1,6 +1,7 @@
 import {Router} from  "express"
-import { registerUser } from "../controllers/user.controller.js";
+import { logOutUser, loginUser, registerUser } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
+import { vertifyJWT } from "../middlewares/auth.middleware.js";
 
 const router= Router();
 
@@ -18,6 +19,9 @@ router.route("/register").post(
         }
     ]),
     registerUser)
-// router.route("/login").post(loginUser)
+    
+router.route("/login").post(loginUser) ;
+//using Middleware created by me 
+router.route("/logout").post(vertifyJWT , logOutUser);
 
 export default router;

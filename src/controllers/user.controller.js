@@ -25,7 +25,7 @@ if([ fullName ,username ,password].some((field)=> field?.trim()===""))
 //also complete validation for  email , username etc by own 
 
 //3. checking whether existing user
- const existedUser=User.findOne({
+ const existedUser= await User.findOne({
     //it is operator like and , or make array check each index
     $or:[{username} , {email}]
  })
@@ -38,7 +38,12 @@ if([ fullName ,username ,password].some((field)=> field?.trim()===""))
  //since we have used middleware for uploading file it adds some additional functionality to our req
  //[0] indicates property at inedex 0 which is path. ? means check whether it exists or not
  const avatarLocalPath=req.files?.avatar[0]?.path
- const coverImageLocalPath=req.files?.coverImage[0]?.path
+//  const coverImageLocalPath=req.files?.coverImage[0]?.path
+ let coverImageLocalPath;
+ if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length>0)
+ {
+  coverImageLocalPath=req.files.coverImage[0].path
+ }
  if(!avatarLocalPath)
  {
     throw new ApiError(400 ,"Avatar file is required")
@@ -46,7 +51,12 @@ if([ fullName ,username ,password].some((field)=> field?.trim()===""))
 
  // 5.  Step them to cloudinary  since it will take time to upload thats why await
   const avatar=await uploadOnCloudinary(avatarLocalPath)
-  const coverImage= await uploadOnCloudinary(coverImageLocalPath);
+let coverImage;
+  if(coverImageLocalPath)
+  {
+   coverImage= await uploadOnCloudinary(coverImageLocalPath);
+  }
+  
 
   // 6. check whether it is uploaded or not
   if(!avatar)
@@ -60,7 +70,7 @@ if([ fullName ,username ,password].some((field)=> field?.trim()===""))
      coverImage:coverImage?.url||" ",
      email,
      password,
-     username : username.toLowerCase()
+     username,
 
    })
 
@@ -82,4 +92,111 @@ if([ fullName ,username ,password].some((field)=> field?.trim()===""))
 
 })
 
-export {registerUser,}
+//method to generate tokens when user login
+const generateAccessAndRefreshToken =async(userId)=>
+{
+  try{
+   const user= await User.findById(userId);
+   //generate access token
+   
+    const accessToken=await  user.generateAccessToken();
+    const refreshToken =await  user.generateRefreshToken();
+    
+    
+    //save refreshtoken in db
+    user.refreshToken=refreshToken;
+     user.save({validateBeforeSave:false})
+     return {refreshToken ,accessToken}
+
+
+  }
+  catch(error)
+  {
+    throw new ApiError(500 ,"Something went wrong while generating tokens..")
+  }
+
+
+}
+
+const loginUser=asyncHandler(async (req ,res)=>{
+
+  // 1. get req.body->data 
+  const {username ,email ,password}=req.body
+
+  //2. now check  whether user has entered email or username anyone of both
+
+  if(!(username ||email))
+  {
+    throw new ApiError(400 ,"Username or Email required...")
+  }
+
+  // 3 . check whether user  exist with same  username or email in db or not
+   const user=  await User.findOne({
+     $or:[{email} ,{username}]
+    })
+     if(!user)
+     {
+      throw new ApiError(404 ,"User not exists.Please signIn to Continue.") 
+     }
+     //4 . if user exists then check password
+     //take user not User (this is for db coming directly from db)
+     //user is variable which holds information which is send bt User.findOne
+      const isPasswordValid = await user.isPasswordCorrect(password);
+      if(!isPasswordValid)
+      {
+        throw new ApiError(401," Incorrect Credentials please login again.")
+      }
+
+      //5. generating accessToken & RefreshToken since we will use it multiple times so creating method
+      const {accessToken ,refreshToken }= await  generateAccessAndRefreshToken(user._id);
+
+      //getting user who is loggged in
+      const loggedInUser=await User.findById(user._id).select("-password -refreshToken");
+
+      //6 . send cookies create options  httponly means cookies cant be modified from frontrnd
+       
+      const options={
+          httpOnly:true,
+          secure:true
+      }
+      return res.status(200).cookies("accessToken" ,accessToken ,options)
+      .cookies("refreshToken" ,refreshToken ,options)
+      .json( new ApiResponse(
+        200,
+        {
+          user:loggedInUser , refreshToken,accessToken
+        },
+        "User logged in Successfully."
+
+      ))
+})
+
+
+// Method to Logout user
+const logOutUser= asyncHandler(async(req ,res)=>{
+   //since we have used middleware(auth) where we have got new user method
+   // 1. we will fing user in db with help of user._id that we have got byd ecryptiong jwt in authh middleware
+    //2 . then update refreshtoken to undefined
+        await User.findByIdAndUpdate(
+        req.user._id,
+        {
+          $set:{ refreshToken :undefined}
+        },
+          {  
+            new:true
+          }
+        
+       )
+       //3. now delete the cookie
+
+       const options={
+        httpOnly:true,
+        secure:true
+    }  
+    return res.status(200)
+    .clearCookie("accessToken" ,options)
+    .clearCookie("refreshToken" ,options)
+    .json(new ApiResponse ( 200 ,{} ,"User loged out succesfully"))
+})
+
+export {registerUser, loginUser ,logOutUser}
