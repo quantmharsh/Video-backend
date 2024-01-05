@@ -44,7 +44,7 @@ const userSchema= new Schema({
         type:String,
         required:[true,"Password is Required..."]
     },
-    refereshToken:{
+    refreshToken:{
         type:String
     }
 
@@ -63,7 +63,7 @@ userSchema.pre("save" , async function (next){
 })
 //we have inserted paassword in db . but to check whether user has entered correct password
 //or not then we wiill use .methods it will help to pass methods
-userSchema.methods.isPasswordCorrect= async (password)=>{
+userSchema.methods.isPasswordCorrect= async function(password){
     // compare password that user has enterd with password store in db  return true or false
       return  await bcrypt.compare(password , this.password )
 
@@ -72,7 +72,7 @@ userSchema.methods.isPasswordCorrect= async (password)=>{
 //since will be using this so cant use arrow function
 userSchema.methods.generateAccessToken=async function (){
     //selecting payloads required for generating access token
-  return   jwt.sign={
+  return   jwt.sign({
     _id:this.id,
     email:this.email,
     username:this.username,
@@ -83,9 +83,10 @@ userSchema.methods.generateAccessToken=async function (){
    {
     expiresIn:process.env.ACCESS_TOKEN_EXPIRY
    }
+  )
 }
 userSchema.methods.generateRefreshToken =async function(){
-    return   jwt.sign={
+    return   jwt.sign({
         _id:this.id,
         email:this.email,
         username:this.username,
@@ -96,5 +97,6 @@ userSchema.methods.generateRefreshToken =async function(){
        {
         expiresIn:process.env.REFRESH_TOKEN_EXPIRY
        }
+    )
 }
 export const User = mongoose.model("User" ,userSchema) 

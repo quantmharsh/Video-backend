@@ -1,7 +1,8 @@
 import {Router} from  "express"
-import { logOutUser, loginUser, registerUser } from "../controllers/user.controller.js";
+import { logOutUser, loginUser, refreshAccessToken, registerUser } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
-import { vertifyJWT } from "../middlewares/auth.middleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+
 
 const router= Router();
 
@@ -22,6 +23,7 @@ router.route("/register").post(
     
 router.route("/login").post(loginUser) ;
 //using Middleware created by me 
-router.route("/logout").post(vertifyJWT , logOutUser);
-
+router.route("/logout").post(verifyJWT , logOutUser);
+//for refreshing access token
+router.route("/refresh-token").post(refreshAccessToken)
 export default router;
